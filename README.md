@@ -74,6 +74,3 @@ StyloGuard/
 
 ## 🤖 Core Model integration
 The AI models for stylometric feature extraction and the pre-trained IndoBERT fusion are embedded directly into the `backend/app/model/` directory, ready to process requests efficiently via the FastAPI endpoints.
-
-## 📄 License
-This project is licensed under the MIT License.
