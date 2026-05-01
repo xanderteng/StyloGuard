@@ -13,7 +13,7 @@ The result is a robust detector capable of identifying if a piece of text was wr
 ## 🏗️ Architecture
 
 -   **Backend**: FastAPI (Python) serving the Feature-Fusion Transformer model.
--   **Frontend**: React Native (Expo) with NativeWind for a premium, responsive cross-platform experience.
+-   **Frontend**: React.js (Vite) for a fast, modern web experience.
 -   **Core Model**: PyTorch-based Transformer with fusion layers for heterogeneous feature integration.
 -   **Containerization**: Fully dockerized environment for seamless deployment.
 
@@ -30,10 +30,10 @@ StyloGuard/
 │   │   └── schemas/        # Pydantic Schemas
 │   ├── Dockerfile
 │   └── requirements.txt
-├── frontend/               # Expo React Native App
-│   ├── app/                # Main Application Logic
-│   ├── components/         # Reusable UI Components
-│   └── tailwind.config.js  # NativeWind Styling
+├── frontend/               # Vite React.js App
+│   ├── src/                # Main Application Source
+│   ├── public/             # Static Assets
+│   └── package.json        # Dependencies
 └── docker-compose.yml      # Orchestration
 ```
 
@@ -64,7 +64,7 @@ StyloGuard/
     ```bash
     cd ../frontend
     npm install
-    npx expo start
+    npm run dev
     ```
 
 4.  **Run with Docker**
