@@ -28,6 +28,10 @@ StyloGuard/
 │   │   ├── model/          # FF-Transformer & Stylometric Extractor
 │   │   ├── routers/        # API Endpoints (Predict, Articles)
 │   │   └── schemas/        # Pydantic Schemas
+│   ├── data/
+│   │   ├── processed/
+│   │   └── raw/
+│   ├── scripts/
 │   ├── Dockerfile
 │   └── requirements.txt
 ├── frontend/               # Vite React.js App
