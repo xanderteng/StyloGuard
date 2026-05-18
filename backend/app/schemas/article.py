@@ -1,5 +1,4 @@
-from pydantic import BaseModel, HttpUrl
-from typing import Optional
+from pydantic import BaseModel, ConfigDict, field_validator
 
 class ArticleBase(BaseModel):
     author: str
@@ -7,7 +6,14 @@ class ArticleBase(BaseModel):
     date: str
     category: str
     text: str
-    url: Optional[HttpUrl] = None
+    url: str
+
+    @field_validator("url")
+    @classmethod
+    def validate_url(cls, value: str) -> str:
+        if value.startswith(("http://", "https://", "missing:")):
+            return value
+        raise ValueError("url must be an HTTP(S) URL or a generated missing: sentinel")
 
 class ArticleCreate(ArticleBase):
     pass
@@ -15,5 +21,4 @@ class ArticleCreate(ArticleBase):
 class Article(ArticleBase):
     id: int
 
-    class Config:
-        orm_mode = True
+    model_config = ConfigDict(from_attributes=True)

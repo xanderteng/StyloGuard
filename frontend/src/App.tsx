@@ -1,28 +1,88 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import './App.css';
+
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:8000';
+// Keep aligned with the backend threshold used to label strong author matches.
+const SIMILARITY_THRESHOLD = 0.86;
+
+type PredictionLabel = 'authentic' | 'human_imposter' | 'ai_generated' | 'uncertain' | 'unknown';
+
+type PredictionResult = {
+  label: PredictionLabel;
+  confidence: number;
+  author_similarity: number;
+  ai_likelihood: number;
+  known_articles: number;
+  stylometry: {
+    lexical_diversity: number;
+    avg_sentence_length: number;
+    punctuation_density: number;
+  };
+  explanation: string;
+};
+
+type Article = {
+  id: number;
+  author: string;
+  title: string;
+  date: string;
+  category: string;
+};
 
 function App() {
   const [activeTab, setActiveTab] = useState<'analyze' | 'dataset'>('analyze');
   const [textInput, setTextInput] = useState('');
   const [authorInput, setAuthorInput] = useState('');
   const [isAnalyzing, setIsAnalyzing] = useState(false);
-  const [result, setResult] = useState<null | 'authentic' | 'imposter' | 'ai'>(null);
+  const [result, setResult] = useState<PredictionResult | null>(null);
+  const [error, setError] = useState('');
+  const [articles, setArticles] = useState<Article[]>([]);
+  const [articlesLoading, setArticlesLoading] = useState(true);
+  const [articlesError, setArticlesError] = useState('');
 
-  const handleAnalyze = (e: React.FormEvent) => {
+  useEffect(() => {
+    fetch(`${API_BASE_URL}/articles?limit=10`)
+      .then((response) => response.ok ? response.json() : Promise.reject(new Error('Dataset unavailable')))
+      .then(setArticles)
+      .catch((err) => {
+        setArticles([]);
+        setArticlesError(err instanceof Error ? err.message : 'Dataset unavailable');
+      })
+      .finally(() => setArticlesLoading(false));
+  }, []);
+
+  const handleAnalyze = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!textInput || !authorInput) return;
     
     setIsAnalyzing(true);
     setResult(null);
+    setError('');
     
-    // Simulate API call
-    setTimeout(() => {
+    try {
+      const response = await fetch(`${API_BASE_URL}/predict`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ claimed_author: authorInput, text: textInput }),
+      });
+
+      if (!response.ok) {
+        const details = await response.json().catch(() => null);
+        throw new Error(details?.detail?.[0]?.msg ?? details?.detail ?? 'Analysis failed');
+      }
+
+      setResult(await response.json());
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Unable to analyze this text.');
+    } finally {
       setIsAnalyzing(false);
-      // Random result for mockup
-      const outcomes: ('authentic' | 'imposter' | 'ai')[] = ['authentic', 'imposter', 'ai'];
-      setResult(outcomes[Math.floor(Math.random() * outcomes.length)]);
-    }, 2000);
+    }
   };
+
+  const statusClass = result?.label === 'human_imposter' ? 'imposter' : result?.label === 'ai_generated' ? 'ai' : result?.label;
+  const confidencePercent = result ? `${(result.confidence * 100).toFixed(1)}%` : '0%';
+  const lexicalPercent = result ? `${(result.stylometry.lexical_diversity * 100).toFixed(1)}%` : '0%';
+  const syntacticPercent = result ? `${(result.author_similarity * 100).toFixed(1)}%` : '0%';
 
   return (
     <div className="app-container">
@@ -94,49 +154,59 @@ function App() {
               </div>
 
               <div className="results-section glass-panel">
-                {result ? (
+                {error ? (
+                  <div className="empty-state error-state">
+                    <div className="empty-icon">⚠️</div>
+                    <h3>Analysis Failed</h3>
+                    <p>{error}</p>
+                  </div>
+                ) : result ? (
                   <div className="result-display animate-fade-in">
                     <h3>Analysis Complete</h3>
                     
-                    <div className={`status-card ${result}`}>
+                    <div className={`status-card ${statusClass}`}>
                       <div className="status-icon">
-                        {result === 'authentic' && '✅'}
-                        {result === 'imposter' && '🕵️'}
-                        {result === 'ai' && '🤖'}
+                        {result.label === 'authentic' && '✅'}
+                        {result.label === 'human_imposter' && '🕵️'}
+                        {result.label === 'ai_generated' && '🤖'}
+                        {result.label === 'uncertain' && '🧭'}
+                        {result.label === 'unknown' && '❔'}
                       </div>
                       <div className="status-text">
                         <h4>
-                          {result === 'authentic' && 'Authentic Author'}
-                          {result === 'imposter' && 'Human Imposter Detected'}
-                          {result === 'ai' && 'AI Ghostwriter Detected'}
+                          {result.label === 'authentic' && 'Authentic Author'}
+                          {result.label === 'human_imposter' && 'Human Imposter Detected'}
+                          {result.label === 'ai_generated' && 'AI Ghostwriter Detected'}
+                          {result.label === 'uncertain' && 'Uncertain Match'}
+                          {result.label === 'unknown' && 'Insufficient Author Data'}
                         </h4>
-                        <p>
-                          {result === 'authentic' && 'The stylometric features match the historical profile of the claimed author.'}
-                          {result === 'imposter' && 'Significant deviations in syntactic patterns suggest a different human author.'}
-                          {result === 'ai' && 'Low lexical diversity and high predictability indicate LLM generation.'}
-                        </p>
+                        <p>{result.explanation}</p>
+                        <p className="known-count">Compared against {result.known_articles} known article(s).</p>
                       </div>
                     </div>
 
                     <div className="metrics-grid">
                       <div className="metric-box">
-                        <span className="metric-label">IndoBERT Confidence</span>
-                        <span className="metric-value">94.2%</span>
-                        <div className="progress-bar"><div className="fill" style={{width: '94.2%'}}></div></div>
+                        <span className="metric-label">Decision Confidence</span>
+                        <span className="metric-value">{confidencePercent}</span>
+                        <div className="progress-bar"><div className="fill" style={{width: confidencePercent}}></div></div>
                       </div>
                       <div className="metric-box">
                         <span className="metric-label">Lexical Diversity</span>
-                        <span className="metric-value">87.5%</span>
-                        <div className="progress-bar"><div className="fill" style={{width: '87.5%'}}></div></div>
+                        <span className="metric-value">{lexicalPercent}</span>
+                        <div className="progress-bar"><div className="fill" style={{width: lexicalPercent}}></div></div>
                       </div>
                       <div className="metric-box">
                         <span className="metric-label">Syntactic Match</span>
-                        <span className="metric-value">
-                           {result === 'authentic' ? '92.1%' : '41.3%'}
-                        </span>
+                        <span className="metric-value">{syntacticPercent}</span>
                         <div className="progress-bar">
-                          <div className={`fill ${result === 'authentic' ? '' : 'warning'}`} style={{width: result === 'authentic' ? '92.1%' : '41.3%'}}></div>
+                          <div className={`fill ${result.author_similarity >= SIMILARITY_THRESHOLD ? '' : 'warning'}`} style={{width: syntacticPercent}}></div>
                         </div>
+                      </div>
+                      <div className="metric-box">
+                        <span className="metric-label">AI-Like Signal</span>
+                        <span className="metric-value">{(result.ai_likelihood * 100).toFixed(1)}%</span>
+                        <div className="progress-bar"><div className="fill warning" style={{width: `${result.ai_likelihood * 100}%`}}></div></div>
                       </div>
                     </div>
                   </div>
@@ -168,29 +238,29 @@ function App() {
                     <th>Status</th>
                   </tr>
                 </thead>
-                <tbody>
-                  <tr>
-                    <td>Matius Alfons Hutajulu</td>
-                    <td><span className="badge">berita</span></td>
-                    <td className="truncate">Arus Balik Lebaran, Sejumlah Titik Tol Arah Jakarta Padat Malam Ini</td>
-                    <td>25 Mar 2026</td>
-                    <td><span className="badge success">Verified</span></td>
-                  </tr>
-                  <tr>
-                    <td>Matius Alfons Hutajulu</td>
-                    <td><span className="badge">berita</span></td>
-                    <td className="truncate">Kemenpar Ungkap 4,2 Juta Warga DKI Tak Mudik...</td>
-                    <td>25 Mar 2026</td>
-                    <td><span className="badge success">Verified</span></td>
-                  </tr>
-                  <tr>
-                    <td>Unknown</td>
-                    <td><span className="badge">opini</span></td>
-                    <td className="truncate">Perkembangan Ekonomi Digital di Indonesia 2026</td>
-                    <td>24 Mar 2026</td>
-                    <td><span className="badge danger">AI Generated</span></td>
-                  </tr>
-                </tbody>
+                  <tbody>
+                    {articlesLoading ? (
+                      <tr>
+                        <td colSpan={5}>Loading articles...</td>
+                      </tr>
+                    ) : articlesError ? (
+                      <tr>
+                        <td colSpan={5}>Error: {articlesError}</td>
+                      </tr>
+                    ) : articles.length ? articles.map((article) => (
+                      <tr key={article.id}>
+                        <td>{article.author}</td>
+                        <td><span className="badge">{article.category}</span></td>
+                        <td className="truncate">{article.title}</td>
+                        <td>{article.date}</td>
+                        <td><span className="badge success">Indexed</span></td>
+                      </tr>
+                    )) : (
+                      <tr>
+                        <td colSpan={5}>No backend data loaded yet. Run the backend seed script to populate articles.</td>
+                      </tr>
+                    )}
+                  </tbody>
               </table>
             </div>
           </div>
