@@ -33,7 +33,8 @@ StyloGuard/
 │   │   └── raw/
 │   ├── scripts/
 │   ├── Dockerfile
-│   └── requirements.txt
+│   ├── pyproject.toml
+│   └── uv.lock
 ├── frontend/               # Vite React.js App
 │   ├── src/                # Main Application Source
 │   ├── public/             # Static Assets
@@ -44,7 +45,8 @@ StyloGuard/
 ## 🛠️ Getting Started
 
 ### Prerequisites
-- Python 3.10+
+- Python 3.12-3.13
+- uv
 - Node.js & npm
 - Docker & Docker Compose
 
@@ -59,9 +61,9 @@ StyloGuard/
 2.  **Backend Setup**
     ```bash
     cd backend
-    python -m venv venv
-    .\venv\Scripts\activate
-    pip install -r requirements.txt
+    uv sync
+    uv run python -m scripts.seed_db
+    uv run uvicorn app.main:app --reload
     ```
 
 3.  **Frontend Setup**

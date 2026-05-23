@@ -233,6 +233,11 @@ input:focus, textarea:focus {
   border: 1px solid rgba(251, 191, 36, 0.3);
 }
 
+.status-card.uncertain, .status-card.unknown {
+  background: rgba(129, 140, 248, 0.1);
+  border: 1px solid rgba(129, 140, 248, 0.3);
+}
+
 .status-icon {
   font-size: 2.5rem;
 }
@@ -245,11 +250,20 @@ input:focus, textarea:focus {
 .status-card.authentic h4 { color: var(--success); }
 .status-card.imposter h4 { color: var(--danger); }
 .status-card.ai h4 { color: var(--warning); }
+.status-card.uncertain h4, .status-card.unknown h4 { color: var(--accent-secondary); }
 
 .status-text p {
   color: var(--text-muted);
   line-height: 1.5;
   font-size: 0.95rem;
+}
+
+.known-count {
+  margin-top: 0.5rem;
+}
+
+.error-state h3 {
+  color: var(--danger);
 }
 
 /* Metrics */
