@@ -2,20 +2,24 @@
 
 StyloGuard is a state-of-the-art system designed to detect human imposters and automated ghostwriters in Indonesian digital media. By leveraging a **Feature-Fusion Transformer** architecture, it combines the semantic power of pre-trained language models with the invariant nature of topic-blind stylometric features.
 
-## 🚀 Overview
+## 🚀 Overview & Key Features
 
-StyloGuard addresses the growing challenge of digital authenticity. Traditional NLP models often struggle with "topic-leakage" where they identify the *subject* rather than the *author*. StyloGuard solves this by fusing:
-1.  **IndoBERT**: A state-of-the-art Indonesian BERT model for deep semantic and contextual understanding.
-2.  **Topic-Blind Stylometrics**: Custom-extracted features (punctuation density, lexical diversity, syntactic patterns) that remain consistent regardless of the topic.
+StyloGuard addresses the growing challenge of digital authenticity. Traditional NLP models often struggle with "topic-leakage" where they identify the *subject* rather than the *author*. StyloGuard solves this by fusing semantic deep learning with topic-blind style fingerprints:
 
-The result is a robust detector capable of identifying if a piece of text was written by the claimed author, a human imposter, or an LLM-generated ghostwriter.
+1.  **IndoBERT Contextual Backbone**: An Indonesian BERT architecture capturing deep contextual, semantic, and textual cues.
+2.  **Topic-Blind Stylometrics**: 52 hand-crafted features (punctuation frequency, lexical diversity, structural patterns, part-of-speech distributions) capturing writing style invariant of topic.
+3.  **💎 Premium Dual-Channel Explainable AI (xAI) Center**:
+    *   **Semantic Channel (Inline Attention Heatmap)**: Highlights input text dynamically based on the exact self-attention weights extracted from the last layer of IndoBERT, allowing stakeholders to visually inspect word-level contributions.
+    *   **Stylistic Channel (Autograd Driver Chart)**: Computes true stylometric feature contributions using PyTorch backpropagation (`Gradient * Input` attribution), displaying them in an elegant green/red positive/negative driver chart.
 
-## 🏗️ Architecture
+---
 
--   **Backend**: FastAPI (Python) serving the Feature-Fusion Transformer model.
--   **Frontend**: React.js (Vite) for a fast, modern web experience.
--   **Core Model**: PyTorch-based Transformer with fusion layers for heterogeneous feature integration.
--   **Containerization**: Fully dockerized environment for seamless deployment.
+## 🏗️ Architecture & Optimizations
+
+*   **Backend**: FastAPI (Python 3.12) exposing inference pipelines and database operations in under 100ms.
+*   **Frontend**: React.js (Vite + TypeScript) with modern glassmorphic designs and smooth transitions.
+*   **Deep Learning Engine**: PyTorch-based hybrid `FeatureFusionTransformer`.
+*   **Optimized Docker Stack**: Engineered with **CPU-only PyTorch >=2.6** (vulnerability safe for CVE-2025-32434) and a **host-caching volume mount** (`~/.cache/huggingface`) that ensures near-instantaneous container starts.
 
 ## 📂 Project Structure
 
@@ -73,10 +77,16 @@ StyloGuard/
     npm run dev
     ```
 
-4.  **Run with Docker**
+4.  **Run with Docker (Recommended)**
     ```bash
     docker-compose up --build
     ```
+    *   **Auto-Seeding**: Boots the SQLite database and seeds it with **3,904 historical articles** automatically.
+    *   **Caching**: Maps the host's HuggingFace cache directory (`~/.cache/huggingface`) to the container for near-instant startups.
+    *   **Ports**: Access the Web UI at `http://localhost:5173` and the backend API at `http://localhost:8000`.
 
-## 🤖 Core Model integration
-The AI models for stylometric feature extraction and the pre-trained IndoBERT fusion are embedded directly into the `backend/app/model/` directory, ready to process requests efficiently via the FastAPI endpoints.
+---
+
+## 🤖 Core Model Integration
+
+The hybrid `FeatureFusionTransformer` resides inside `backend/app/model/`. At startup, the `ModelManager` singleton dynamically maps weights, tokenizer configurations, scaler instances, and labels directly from the `model_artifacts/` directory, gracefully degrading to a robust fallback state should any component be missing.
