@@ -7,6 +7,7 @@ class PredictionRequest(BaseModel):
 
 
 class StylometryFeatures(BaseModel):
+    """Accepts the full 52-feature dictionary from the extractor."""
     model_config = ConfigDict(extra="allow")
 
     word_count: float
@@ -20,13 +21,29 @@ class StylometryFeatures(BaseModel):
     period_ratio: float
     question_ratio: float
     exclamation_ratio: float
-    quote_ratio: float
-    semicolon_ratio: float
+    semicolon_colon_ratio: float
+    dash_ratio: float
+    digit_char_ratio: float
     uppercase_ratio: float
     numeric_ratio: float
     stopword_ratio: float
     paragraph_count: float
     avg_paragraph_length: float
+    short_word_ratio: float
+    long_word_ratio: float
+    suffix_nya_ratio: float
+    suffix_lah_ratio: float
+    suffix_kah_ratio: float
+
+
+class TokenAttention(BaseModel):
+    token: str
+    attention: float
+
+
+class StylometryImportance(BaseModel):
+    feature: str
+    importance: float
 
 
 class PredictionResponse(BaseModel):
@@ -34,6 +51,8 @@ class PredictionResponse(BaseModel):
     confidence: float
     author_similarity: float
     ai_likelihood: float
-    known_articles: int
     stylometry: StylometryFeatures
+    class_probabilities: dict[str, float] = Field(default_factory=dict)
+    xai_tokens: list[TokenAttention] = Field(default_factory=list)
+    xai_stylometry: list[StylometryImportance] = Field(default_factory=list)
     explanation: str

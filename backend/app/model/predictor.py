@@ -1,270 +1,117 @@
+"""
+Authorship prediction — PyTorch inference pipeline.
+
+Replaces the legacy statistical-distance approach with a single forward pass
+through the ``FeatureFusionTransformer``.
+
+Business-logic label mapping:
+  • model predicts "AI"                     →  ``ai_generated``
+  • model predicts a human ≠ claimed_author →  ``human_imposter``
+  • model predicts claimed_author           →  ``authentic``
+"""
+
 from __future__ import annotations
 
-import threading
-
-from sqlalchemy.orm import Session
-
-from app.db.models import Article
-from app.model.preprocess import normalize_text
+from app.core.config import LABEL_AI
+from app.model.model_manager import ModelManager
 from app.model.stylometry_extractor import (
-    FEATURE_NAMES,
     extract_features,
-    mean_features,
-    std_features,
+    extract_features_dict,
 )
 
-MIN_AUTHOR_ARTICLES = 3
-MAX_COMPETING_AUTHORS = 250
-_AUTHOR_INDEX: dict | None = None
-_AUTHOR_INDEX_COUNT = -1
-_AUTHOR_INDEX_LOCK = threading.Lock()
 
-FEATURE_WEIGHTS = {
-    "word_count": 0.0,
-    "sentence_count": 0.0,
-    "paragraph_count": 0.0,
-    "avg_word_length": 1.4,
-    "avg_sentence_length": 1.1,
-    "sentence_length_variance": 0.7,
-    "lexical_diversity": 1.2,
-    "punctuation_density": 1.4,
-    "comma_ratio": 1.1,
-    "period_ratio": 0.9,
-    "question_ratio": 0.5,
-    "exclamation_ratio": 0.5,
-    "quote_ratio": 0.9,
-    "semicolon_ratio": 0.8,
-    "uppercase_ratio": 0.7,
-    "numeric_ratio": 0.5,
-    "stopword_ratio": 1.0,
-    "avg_paragraph_length": 0.6,
-}
+def predict_authorship(claimed_author: str, text: str) -> dict:
+    """
+    Run the full prediction pipeline.
 
-for feature_name in FEATURE_NAMES:
-    if feature_name.startswith("fw_"):
-        FEATURE_WEIGHTS[feature_name] = 1.3
+    1. Extract 52 stylometric features.
+    2. Scale features with the fitted StandardScaler.
+    3. Tokenize text with the IndoBERT tokenizer.
+    4. Forward-pass through the FeatureFusionTransformer.
+    5. Map the softmax output to the API response schema.
+    """
+    manager = ModelManager.get()
 
-FEATURE_FLOORS = {
-    "avg_word_length": 0.35,
-    "avg_sentence_length": 4.0,
-    "sentence_length_variance": 35.0,
-    "lexical_diversity": 0.08,
-    "punctuation_density": 0.012,
-    "comma_ratio": 0.006,
-    "period_ratio": 0.006,
-    "question_ratio": 0.002,
-    "exclamation_ratio": 0.002,
-    "quote_ratio": 0.004,
-    "semicolon_ratio": 0.003,
-    "uppercase_ratio": 0.015,
-    "numeric_ratio": 0.02,
-    "stopword_ratio": 0.045,
-    "avg_paragraph_length": 60.0,
-}
-
-for feature_name in FEATURE_NAMES:
-    if feature_name.startswith("fw_"):
-        FEATURE_FLOORS[feature_name] = 0.01
-
-
-def _build_profile_from_features(article_features: list[dict[str, float]]) -> dict:
-    means = mean_features(article_features)
-    stds = std_features(article_features, means)
-    return {"means": means, "stds": stds, "article_count": len(article_features)}
-
-
-def _get_author_index(db: Session) -> dict:
-    global _AUTHOR_INDEX, _AUTHOR_INDEX_COUNT
-
-    with _AUTHOR_INDEX_LOCK:
-        article_count = db.query(Article).count()
-        if _AUTHOR_INDEX is not None and _AUTHOR_INDEX_COUNT == article_count:
-            return _AUTHOR_INDEX
-
-        grouped: dict[str, list[dict[str, float]]] = {}
-        exact_matches: dict[str, set[str]] = {}
-        for article in db.query(Article).all():
-            if not article.author or not article.text:
-                continue
-            grouped.setdefault(article.author, []).append(extract_features(article.text))
-            exact_matches.setdefault(normalize_text(article.text), set()).add(article.author)
-
-        next_index = {
-            "authors": {
-                author: {
-                    "article_count": len(article_features),
-                    "article_features": article_features,
-                    "profile": _build_profile_from_features(article_features),
-                }
-                for author, article_features in grouped.items()
-            },
-            "exact_matches": exact_matches,
-        }
-        _AUTHOR_INDEX = next_index
-        _AUTHOR_INDEX_COUNT = article_count
-        return next_index
-
-
-def _feature_scale(feature_name: str, mean: float, std: float) -> float:
-    floor = FEATURE_FLOORS.get(feature_name, 0.01)
-    relative_scale = abs(mean) * 0.35
-    author_scale = std * 1.25
-    return max(floor, relative_scale, author_scale)
-
-
-def _profile_distance(features: dict[str, float], profile: dict) -> float:
-    weighted_total = 0.0
-    weight_sum = 0.0
-
-    for feature_name in FEATURE_NAMES:
-        weight = FEATURE_WEIGHTS.get(feature_name, 1.0)
-        if weight <= 0:
-            continue
-
-        mean = profile["means"][feature_name]
-        std = profile["stds"][feature_name]
-        scale = _feature_scale(feature_name, mean, std)
-        normalized_difference = min(abs(features[feature_name] - mean) / scale, 3.0)
-        weighted_total += weight * normalized_difference
-        weight_sum += weight
-
-    return weighted_total / weight_sum if weight_sum else 3.0
-
-
-def _single_text_distance(left: dict[str, float], right: dict[str, float]) -> float:
-    profile = {
-        "means": right,
-        "stds": {feature_name: 0.0 for feature_name in FEATURE_NAMES},
-        "article_count": 1,
-    }
-    return _profile_distance(left, profile)
-
-
-def _author_distance(features: dict[str, float], author_entry: dict) -> float:
-    profile_distance = _profile_distance(features, author_entry["profile"])
-    nearest_article_distance = min(
-        _single_text_distance(features, article_features)
-        for article_features in author_entry["article_features"]
-    )
-    return profile_distance * 0.35 + nearest_article_distance * 0.65
-
-
-def _distance_to_similarity(distance: float) -> float:
-    return round(max(0.0, min(1.0, 1.0 - distance / 2.2)), 4)
-
-
-def estimate_ai_likelihood(features: dict[str, float]) -> float:
-    lexical_signal = max(0.0, (0.45 - features["lexical_diversity"]) / 0.45)
-    punctuation_signal = max(0.0, (0.035 - features["punctuation_density"]) / 0.035)
-    sentence_signal = max(0.0, (features["avg_sentence_length"] - 28) / 28)
-    stopword_signal = max(0.0, (features["stopword_ratio"] - 0.34) / 0.34)
-    score = (
-        lexical_signal * 0.35
-        + punctuation_signal * 0.2
-        + sentence_signal * 0.25
-        + stopword_signal * 0.2
-    )
-    return round(max(0.0, min(score, 1.0)), 4)
-
-
-def predict_authorship(db: Session, claimed_author: str, text: str) -> dict:
-    submitted_features = extract_features(text)
-    normalized_input = normalize_text(text)
-    author_index = _get_author_index(db)
-    author_entries = author_index["authors"]
-    exact_matches = author_index["exact_matches"]
-    claimed_author_key = next(
-        (author for author in author_entries if author.lower() == claimed_author.strip().lower()),
-        None,
-    )
-    claimed_entry = author_entries.get(claimed_author_key) if claimed_author_key else None
-    known_article_count = claimed_entry["article_count"] if claimed_entry else 0
-
-    ai_likelihood = estimate_ai_likelihood(submitted_features)
-
-    matching_authors = sorted(exact_matches.get(normalized_input, set()))
-    if matching_authors:
-        claimed_matches = [
-            author
-            for author in matching_authors
-            if author.lower() == claimed_author.strip().lower()
-        ]
-
-        if claimed_matches:
-            return {
-                "label": "authentic",
-                "confidence": 0.99,
-                "author_similarity": 1.0,
-                "ai_likelihood": ai_likelihood,
-                "known_articles": known_article_count,
-                "stylometry": submitted_features,
-                "explanation": "This exact article is present in the indexed dataset under the claimed author.",
-            }
-
+    if not manager.is_ready:
         return {
-            "label": "human_imposter",
-            "confidence": 0.99,
+            "label": "unavailable",
+            "confidence": 0.0,
             "author_similarity": 0.0,
-            "ai_likelihood": ai_likelihood,
-            "known_articles": known_article_count,
-            "stylometry": submitted_features,
-            "explanation": f"This exact article is indexed under {', '.join(matching_authors[:3])}, not {claimed_author.strip()}.",
+            "ai_likelihood": 0.0,
+            "stylometry": extract_features_dict(text),
+            "class_probabilities": {},
+            "explanation": (
+                "The deep-learning model has not been loaded yet. "
+                "Please ensure the model artefacts are present in "
+                "backend/model_artifacts/ and restart the server."
+            ),
         }
 
-    if known_article_count < MIN_AUTHOR_ARTICLES:
-        label = "unknown"
-        confidence = 0.35
-        similarity = 0.0
-        explanation = (
-            f"Only {known_article_count} known article(s) were found for this author. "
-            f"At least {MIN_AUTHOR_ARTICLES} are needed for a reliable style profile."
-        )
-    else:
-        claimed_distance = _author_distance(submitted_features, claimed_entry)
-        similarity = _distance_to_similarity(claimed_distance)
+    # ── Feature extraction ───────────────────────────────────────────────
+    stylometry_vector = extract_features(text)
+    stylometry_dict = extract_features_dict(text)
 
-        competitor_scores = []
-        for author, author_entry in author_entries.items():
-            if author == claimed_author_key or author_entry["article_count"] < MIN_AUTHOR_ARTICLES:
-                continue
-            distance = _author_distance(submitted_features, author_entry)
-            competitor_scores.append((distance, author, author_entry["article_count"]))
+    # ── Model inference ──────────────────────────────────────────────────
+    predicted_label, prob_map, xai_tokens, xai_stylometry = manager.predict(text, stylometry_vector)
+    confidence = prob_map.get(predicted_label, 0.0)
+    ai_probability = prob_map.get(LABEL_AI, 0.0)
 
-        competitor_scores.sort(key=lambda item: item[0])
-        competitor_scores = competitor_scores[:MAX_COMPETING_AUTHORS]
-        best_competitor = competitor_scores[0] if competitor_scores else None
-        competitor_margin = (best_competitor[0] - claimed_distance) if best_competitor else 1.0
+    # ── Business-logic label mapping ─────────────────────────────────────
+    claimed_lower = claimed_author.strip().lower()
 
-        if ai_likelihood >= 0.68 and similarity < 0.72:
-            label = "ai_generated"
-            confidence = max(ai_likelihood, 1 - similarity)
-            explanation = "The text diverges from the claimed author's profile and shows heuristic AI-like regularity."
-        elif best_competitor and (similarity < 0.78 or competitor_margin < -0.16):
-            label = "human_imposter"
-            confidence = min(0.95, max(0.55, 1 - similarity, abs(competitor_margin) / 0.55))
-            explanation = (
-                "The text falls outside the claimed author's calibrated style profile "
-                "relative to other indexed authors."
-            )
-        elif similarity >= 0.78 and competitor_margin >= -0.2:
-            label = "authentic"
-            confidence = similarity
-            explanation = "The submitted text is close to the claimed author's historical stylometric profile."
-        elif similarity >= 0.64:
-            label = "uncertain"
-            confidence = similarity
-            explanation = "The text partly matches the author profile, but the evidence is not strong enough."
-        else:
-            label = "human_imposter"
-            confidence = 1 - similarity
-            explanation = "The submitted text differs substantially from the claimed author's historical style profile."
+    if predicted_label == LABEL_AI:
+        return {
+            "label": "ai_generated",
+            "confidence": round(confidence, 4),
+            "author_similarity": round(prob_map.get(claimed_author, _fuzzy_lookup(prob_map, claimed_lower)), 4),
+            "ai_likelihood": round(ai_probability, 4),
+            "stylometry": stylometry_dict,
+            "class_probabilities": prob_map,
+            "xai_tokens": xai_tokens,
+            "xai_stylometry": xai_stylometry,
+            "explanation": (
+                "The text shows strong heuristic and stylistic alignment "
+                "with AI-generated content."
+            ),
+        }
 
+    # Check if the predicted human author matches the claimed one
+    if predicted_label.strip().lower() == claimed_lower:
+        return {
+            "label": "authentic",
+            "confidence": round(confidence, 4),
+            "author_similarity": round(confidence, 4),
+            "ai_likelihood": round(ai_probability, 4),
+            "stylometry": stylometry_dict,
+            "class_probabilities": prob_map,
+            "xai_tokens": xai_tokens,
+            "xai_stylometry": xai_stylometry,
+            "explanation": (
+                "The submitted text is stylistically consistent with the "
+                "claimed author's writing profile."
+            ),
+        }
+
+    # Predicted a different human author
     return {
-        "label": label,
-        "confidence": round(float(confidence), 4),
-        "author_similarity": round(float(similarity), 4),
-        "ai_likelihood": ai_likelihood,
-        "known_articles": known_article_count,
-        "stylometry": submitted_features,
-        "explanation": explanation,
+        "label": "human_imposter",
+        "confidence": round(confidence, 4),
+        "author_similarity": round(_fuzzy_lookup(prob_map, claimed_lower), 4),
+        "ai_likelihood": round(ai_probability, 4),
+        "stylometry": stylometry_dict,
+        "class_probabilities": prob_map,
+        "xai_tokens": xai_tokens,
+        "xai_stylometry": xai_stylometry,
+        "explanation": (
+            f"This text is stylistically aligned with {predicted_label}, "
+            f"not the claimed author {claimed_author.strip()}."
+        ),
     }
+
+
+def _fuzzy_lookup(prob_map: dict[str, float], target_lower: str) -> float:
+    """Case-insensitive probability lookup."""
+    for label, prob in prob_map.items():
+        if label.strip().lower() == target_lower:
+            return prob
+    return 0.0
