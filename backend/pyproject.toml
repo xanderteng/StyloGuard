@@ -1,13 +1,18 @@
 [project]
 name = "styloguard-backend"
-version = "0.1.0"
-description = "FastAPI backend for the StyloGuard stylometry MVP."
+version = "0.2.0"
+description = "FastAPI backend for the StyloGuard stylometry system using Feature-Fusion Transformers."
 requires-python = ">=3.12,<3.14"
 dependencies = [
     "fastapi>=0.115.6,<1.0.0",
     "pydantic>=2.12.0,<3.0.0",
     "sqlalchemy>=2.0.36,<3.0.0",
     "uvicorn[standard]>=0.34.0,<1.0.0",
+    "torch>=2.2.0",
+    "transformers>=4.40.0",
+    "joblib>=1.4.0",
+    "scikit-learn>=1.4.0",
+    "numpy>=1.26.0",
 ]
 
 [dependency-groups]
