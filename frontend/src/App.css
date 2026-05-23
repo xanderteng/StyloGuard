@@ -369,3 +369,222 @@ input:focus, textarea:focus {
   background: rgba(248, 113, 113, 0.2);
   color: var(--danger);
 }
+
+/* Class Probability Breakdown */
+.class-breakdown {
+  margin-top: 2rem;
+  padding-top: 1.5rem;
+  border-top: 1px solid var(--border);
+}
+
+.breakdown-title {
+  font-size: 0.9rem;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin-bottom: 1rem;
+}
+
+.class-row {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin-bottom: 0.75rem;
+}
+
+.class-label {
+  min-width: 90px;
+  font-size: 0.9rem;
+  font-weight: 500;
+  color: var(--text-main);
+  text-transform: capitalize;
+}
+
+.class-bar-container {
+  flex: 1;
+  height: 8px;
+  background: rgba(255, 255, 255, 0.08);
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.class-bar {
+  height: 100%;
+  background: linear-gradient(90deg, var(--accent-primary), var(--accent-secondary));
+  border-radius: 4px;
+  transition: width 0.8s ease-out;
+}
+
+.class-bar-ai {
+  background: linear-gradient(90deg, var(--warning), var(--danger));
+}
+
+.class-prob {
+  min-width: 55px;
+  text-align: right;
+  font-size: 0.85rem;
+  font-weight: 600;
+  font-family: 'Outfit', sans-serif;
+  color: var(--text-muted);
+}
+
+/* Unavailable status card */
+.status-card.unavailable {
+  background: rgba(129, 140, 248, 0.1);
+  border: 1px solid rgba(129, 140, 248, 0.3);
+}
+
+.status-card.unavailable h4 {
+  color: var(--accent-secondary);
+}
+
+/* Explainable AI (xAI) Insights */
+.xai-breakdown {
+  margin-top: 2rem;
+  padding-top: 1.5rem;
+  border-top: 1px solid var(--border);
+}
+
+.xai-subtitle {
+  font-size: 0.85rem;
+  color: var(--text-muted);
+  margin-bottom: 1rem;
+}
+
+.xai-tokens-container {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+}
+
+.xai-token-pill {
+  display: inline-flex;
+  align-items: center;
+  background: rgba(148, 163, 184, 0.1);
+  border: 1px solid rgba(148, 163, 184, 0.2);
+  border-radius: 999px;
+  padding: 0.25rem 0.5rem 0.25rem 0.75rem;
+  transition: all 0.2s ease;
+}
+
+.xai-token-pill:hover {
+  background: rgba(56, 189, 248, 0.1);
+  border-color: rgba(56, 189, 248, 0.3);
+  transform: translateY(-1px);
+}
+
+.xai-word {
+  font-family: 'Outfit', sans-serif;
+  font-weight: 500;
+  color: var(--text-main);
+  margin-right: 0.5rem;
+}
+
+.xai-weight {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--accent-primary);
+  background: rgba(56, 189, 248, 0.1);
+  padding: 0.1rem 0.4rem;
+  border-radius: 999px;
+}
+
+/* Premium xAI Visuals */
+.highlighted-text-box {
+  background: rgba(0, 0, 0, 0.3);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 1.5rem;
+  margin-top: 1.25rem;
+  margin-bottom: 2rem;
+  max-height: 250px;
+  overflow-y: auto;
+  line-height: 1.8;
+  font-size: 0.95rem;
+  color: var(--text-main);
+  text-align: justify;
+}
+
+.highlight-word-pill {
+  padding: 0.15rem 0.3rem;
+  border-radius: 4px;
+  margin: 0 0.1rem;
+  transition: all 0.3s ease;
+  font-weight: 500;
+  cursor: help;
+  display: inline-block;
+}
+
+.highlight-word-pill:hover {
+  transform: scale(1.05);
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
+  filter: brightness(1.2);
+}
+
+.stylometry-xai-section {
+  margin-top: 2rem;
+  padding-top: 1.5rem;
+  border-top: 1px solid var(--border);
+}
+
+.stylometry-bars-container {
+  display: flex;
+  flex-direction: column;
+  gap: 0.9rem;
+  margin-top: 1.25rem;
+}
+
+.stylo-bar-row {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.stylo-bar-label {
+  min-width: 140px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--text-muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.stylo-bar-track {
+  flex: 1;
+  height: 10px;
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 5px;
+  overflow: hidden;
+  display: flex;
+}
+
+.stylo-bar-fill {
+  height: 100%;
+  border-radius: 5px;
+  transition: width 1s cubic-bezier(0.1, 0.8, 0.2, 1);
+}
+
+.stylo-bar-fill.positive {
+  background: linear-gradient(90deg, var(--accent-primary), #10b981);
+}
+
+.stylo-bar-fill.negative {
+  background: linear-gradient(270deg, var(--danger), #f59e0b);
+}
+
+.stylo-bar-value {
+  min-width: 65px;
+  text-align: right;
+  font-family: 'Outfit', sans-serif;
+  font-size: 0.85rem;
+  font-weight: 700;
+}
+
+.positive-text {
+  color: #10b981;
+}
+
+.negative-text {
+  color: var(--danger);
+}
