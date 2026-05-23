@@ -33,6 +33,12 @@ wheels/
 backend/app.db
 styloguard.db
 
+# Model artefacts (large binaries — generated from Kaggle)
+backend/model_artifacts/*.pt
+backend/model_artifacts/*.joblib
+backend/model_artifacts/*.json
+backend/model_artifacts/tokenizer/
+
 # Expo
 .expo/
 dist/

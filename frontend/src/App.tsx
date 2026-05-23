@@ -2,22 +2,23 @@ import { useEffect, useState } from 'react';
 import './App.css';
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:8000';
-// Keep aligned with the backend threshold used to label strong author matches.
-const SIMILARITY_THRESHOLD = 0.86;
 
-type PredictionLabel = 'authentic' | 'human_imposter' | 'ai_generated' | 'uncertain' | 'unknown';
+type PredictionLabel = 'authentic' | 'human_imposter' | 'ai_generated' | 'unavailable';
+
+type StylometryImportance = {
+  feature: string;
+  importance: number;
+};
 
 type PredictionResult = {
   label: PredictionLabel;
   confidence: number;
   author_similarity: number;
   ai_likelihood: number;
-  known_articles: number;
-  stylometry: {
-    lexical_diversity: number;
-    avg_sentence_length: number;
-    punctuation_density: number;
-  };
+  stylometry: Record<string, number>;
+  class_probabilities: Record<string, number>;
+  xai_tokens?: { token: string; attention: number }[];
+  xai_stylometry?: StylometryImportance[];
   explanation: string;
 };
 
@@ -81,8 +82,66 @@ function App() {
 
   const statusClass = result?.label === 'human_imposter' ? 'imposter' : result?.label === 'ai_generated' ? 'ai' : result?.label;
   const confidencePercent = result ? `${(result.confidence * 100).toFixed(1)}%` : '0%';
-  const lexicalPercent = result ? `${(result.stylometry.lexical_diversity * 100).toFixed(1)}%` : '0%';
-  const syntacticPercent = result ? `${(result.author_similarity * 100).toFixed(1)}%` : '0%';
+  const similarityPercent = result ? `${(result.author_similarity * 100).toFixed(1)}%` : '0%';
+  const aiPercent = result ? `${(result.ai_likelihood * 100).toFixed(1)}%` : '0%';
+
+  // Get top 3 class probabilities for the detail view
+  const topClasses = result?.class_probabilities
+    ? Object.entries(result.class_probabilities)
+        .sort(([, a], [, b]) => b - a)
+        .slice(0, 4)
+    : [];
+
+  const renderHighlightedText = () => {
+    if (!textInput || !result?.xai_tokens) return null;
+
+    const attMap = new Map<string, number>();
+    let maxAtt = 0.0001;
+    result.xai_tokens.forEach(t => {
+      const cleanTok = t.token.replace('##', '').toLowerCase().trim();
+      if (cleanTok && cleanTok.length > 1) {
+        attMap.set(cleanTok, t.attention);
+        if (t.attention > maxAtt) maxAtt = t.attention;
+      }
+    });
+
+    const words = textInput.split(/(\s+)/);
+
+    return (
+      <div className="highlighted-text-box">
+        {words.map((w, idx) => {
+          const cleanW = w.toLowerCase().replace(/[.,\/#!$%\^&\*;:{}=\-_`~()?"']/g, "").trim();
+          let highlightColor = 'transparent';
+          let weight = 0;
+
+          if (cleanW) {
+            for (const [cleanTok, att] of attMap.entries()) {
+              if (cleanW.includes(cleanTok) || cleanTok.includes(cleanW)) {
+                weight = att;
+                const normWeight = Math.min(1, weight / maxAtt);
+                highlightColor = `rgba(255, 140, 0, ${0.15 + normWeight * 0.45})`;
+                break;
+              }
+            }
+          }
+
+          if (highlightColor !== 'transparent') {
+            return (
+              <span
+                key={idx}
+                className="highlight-word-pill"
+                style={{ backgroundColor: highlightColor }}
+                title={`Attention weight: ${(weight * 100).toFixed(2)}%`}
+              >
+                {w}
+              </span>
+            );
+          }
+          return <span key={idx}>{w}</span>;
+        })}
+      </div>
+    );
+  };
 
   return (
     <div className="app-container">
@@ -123,7 +182,7 @@ function App() {
                     <input 
                       id="author"
                       type="text" 
-                      placeholder="e.g., Matius Alfons Hutajulu" 
+                      placeholder="e.g., Habib Allbi Ferdian, Ahmad Zaki, etc." 
                       value={authorInput}
                       onChange={(e) => setAuthorInput(e.target.value)}
                       required
@@ -169,46 +228,110 @@ function App() {
                         {result.label === 'authentic' && '✅'}
                         {result.label === 'human_imposter' && '🕵️'}
                         {result.label === 'ai_generated' && '🤖'}
-                        {result.label === 'uncertain' && '🧭'}
-                        {result.label === 'unknown' && '❔'}
+                        {result.label === 'unavailable' && '❔'}
                       </div>
                       <div className="status-text">
                         <h4>
                           {result.label === 'authentic' && 'Authentic Author'}
                           {result.label === 'human_imposter' && 'Human Imposter Detected'}
                           {result.label === 'ai_generated' && 'AI Ghostwriter Detected'}
-                          {result.label === 'uncertain' && 'Uncertain Match'}
-                          {result.label === 'unknown' && 'Insufficient Author Data'}
+                          {result.label === 'unavailable' && 'Model Not Loaded'}
                         </h4>
                         <p>{result.explanation}</p>
-                        <p className="known-count">Compared against {result.known_articles} known article(s).</p>
                       </div>
                     </div>
 
                     <div className="metrics-grid">
                       <div className="metric-box">
-                        <span className="metric-label">Decision Confidence</span>
+                        <span className="metric-label">Model Confidence</span>
                         <span className="metric-value">{confidencePercent}</span>
                         <div className="progress-bar"><div className="fill" style={{width: confidencePercent}}></div></div>
                       </div>
                       <div className="metric-box">
-                        <span className="metric-label">Lexical Diversity</span>
-                        <span className="metric-value">{lexicalPercent}</span>
-                        <div className="progress-bar"><div className="fill" style={{width: lexicalPercent}}></div></div>
-                      </div>
-                      <div className="metric-box">
-                        <span className="metric-label">Syntactic Match</span>
-                        <span className="metric-value">{syntacticPercent}</span>
+                        <span className="metric-label">Author Similarity</span>
+                        <span className="metric-value">{similarityPercent}</span>
                         <div className="progress-bar">
-                          <div className={`fill ${result.author_similarity >= SIMILARITY_THRESHOLD ? '' : 'warning'}`} style={{width: syntacticPercent}}></div>
+                          <div className={`fill ${result.author_similarity < 0.5 ? 'warning' : ''}`} style={{width: similarityPercent}}></div>
                         </div>
                       </div>
                       <div className="metric-box">
                         <span className="metric-label">AI-Like Signal</span>
-                        <span className="metric-value">{(result.ai_likelihood * 100).toFixed(1)}%</span>
-                        <div className="progress-bar"><div className="fill warning" style={{width: `${result.ai_likelihood * 100}%`}}></div></div>
+                        <span className="metric-value">{aiPercent}</span>
+                        <div className="progress-bar"><div className="fill warning" style={{width: aiPercent}}></div></div>
                       </div>
                     </div>
+
+                    {topClasses.length > 0 && (
+                      <div className="class-breakdown">
+                        <h4 className="breakdown-title">Class Probabilities</h4>
+                        {topClasses.map(([label, prob]) => (
+                          <div key={label} className="class-row">
+                            <span className="class-label">{label}</span>
+                            <div className="class-bar-container">
+                              <div
+                                className={`class-bar ${label === 'AI' ? 'class-bar-ai' : ''}`}
+                                style={{ width: `${(prob * 100).toFixed(1)}%` }}
+                              ></div>
+                            </div>
+                            <span className="class-prob">{(prob * 100).toFixed(1)}%</span>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+
+                    {result.xai_tokens && result.xai_tokens.length > 0 && (
+                      <div className="xai-breakdown">
+                        <h4 className="breakdown-title">Explainable AI (xAI) Insights</h4>
+                        
+                        <p className="xai-subtitle">Semantic Heatmap (Attention-driven context highlighting):</p>
+                        {renderHighlightedText()}
+                        
+                        <p className="xai-subtitle">Top contextual words driving the decision:</p>
+                        <div className="xai-tokens-container">
+                          {result.xai_tokens.map((xt, idx) => (
+                            <div key={idx} className="xai-token-pill">
+                              <span className="xai-word">{xt.token.replace('##', '')}</span>
+                              <span className="xai-weight">{(xt.attention * 100).toFixed(1)}%</span>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {result.xai_stylometry && result.xai_stylometry.length > 0 && (
+                      <div className="stylometry-xai-section animate-fade-in">
+                        <h4 className="breakdown-title">Top Stylometric Drivers</h4>
+                        <p className="xai-subtitle">Attribution scores mapping style influence (Autograd Gradients):</p>
+                        <div className="stylometry-bars-container">
+                          {result.xai_stylometry.slice(0, 5).map((item) => {
+                            const isPositive = item.importance >= 0;
+                            const absVal = Math.abs(item.importance);
+                            const maxVal = Math.max(...(result.xai_stylometry?.map(x => Math.abs(x.importance)) || [0.0001]));
+                            const percent = Math.min(100, (absVal / maxVal) * 100);
+                            
+                            const displayName = item.feature
+                              .replace('fw_', 'Word: ')
+                              .replace(/_/g, ' ')
+                              .replace(/\b\w/g, c => c.toUpperCase());
+                              
+                            return (
+                              <div key={item.feature} className="stylo-bar-row">
+                                <span className="stylo-bar-label" title={item.feature}>{displayName}</span>
+                                <div className="stylo-bar-track">
+                                  <div 
+                                    className={`stylo-bar-fill ${isPositive ? 'positive' : 'negative'}`}
+                                    style={{ width: `${percent}%` }}
+                                  ></div>
+                                </div>
+                                <span className={`stylo-bar-value ${isPositive ? 'positive-text' : 'negative-text'}`}>
+                                  {isPositive ? '+' : ''}{item.importance.toFixed(4)}
+                                </span>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    )}
                   </div>
                 ) : (
                   <div className="empty-state">
