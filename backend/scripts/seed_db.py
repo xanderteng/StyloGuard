@@ -59,7 +59,7 @@ def seed_database() -> int:
                 reader = csv.DictReader(handle)
                 for row in reader:
                     url = (row.get("url") or "").strip()
-                    if not url:
+                    if not url or url == "-":
                         fallback_source = "|".join(
                             [
                                 csv_path.name,
