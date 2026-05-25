@@ -1,0 +1,1 @@
+{"repos": [{"repoId": "microsoft/mdeberta-v3-base", "repoType": "model", "commitHash": "faf660b811036d7b6dfc53aacfe5281447d4e2c6", "filePaths": ["model.safetensors"]}, {"repoId": "microsoft/mdeberta-v3-base", "repoType": "model", "commitHash": "a0484667b22365f84929a935b5e50a51f71f159d", "filePaths": ["tokenizer_config.json", "config.json", "spm.model", "pytorch_model.bin"]}]}

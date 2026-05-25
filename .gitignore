@@ -38,6 +38,7 @@ backend/model_artifacts/*.pt
 backend/model_artifacts/*.joblib
 backend/model_artifacts/*.json
 backend/model_artifacts/tokenizer/
+backend/experiment/**/model_artifacts/
 
 # Expo
 .expo/

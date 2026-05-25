@@ -9,7 +9,7 @@ from app.db.models import Article
 from app.db.session import Base, SessionLocal, engine
 
 ROOT = Path(__file__).resolve().parents[1]
-RAW_DATA_DIR = ROOT / "data" / "raw"
+PROCESSED_DATA_DIR = ROOT / "data" / "processed"
 BATCH_SIZE = 100
 logger = logging.getLogger(__name__)
 
@@ -51,7 +51,10 @@ def seed_database() -> int:
 
     try:
         existing_urls = {url for (url,) in db.query(Article.url).all()}
-        for csv_path in sorted(RAW_DATA_DIR.glob("*.csv")):
+        target_csv_path = PROCESSED_DATA_DIR / "filtered_top10.csv"
+        csv_paths = [target_csv_path] if target_csv_path.exists() else sorted(PROCESSED_DATA_DIR.glob("*.csv"))
+        
+        for csv_path in csv_paths:
             with csv_path.open(newline="", encoding="utf-8") as handle:
                 reader = csv.DictReader(handle)
                 for row in reader:

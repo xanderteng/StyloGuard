@@ -48,12 +48,12 @@ class FeatureFusionTransformer(nn.Module):
         self.backbone = AutoModel.from_pretrained(model_name, attn_implementation="eager")
         hidden = self.backbone.config.hidden_size  # 768 for indobert-base-p1
 
-        self.sty_branch = nn.Sequential(
-            nn.Linear(num_sty_features, 64),
-            nn.LayerNorm(64),
-            nn.ReLU(),
-            nn.Dropout(0.20),
-        )
+        self.sty_fc1 = nn.Linear(num_sty_features, 64)
+        self.sty_norm1 = nn.LayerNorm(64)
+        self.sty_fc2 = nn.Linear(64, 64)
+        self.sty_norm2 = nn.LayerNorm(64)
+        self.sty_relu = nn.ReLU()
+        self.sty_dropout = nn.Dropout(0.30)
 
         self.classifier = nn.Sequential(
             nn.Linear(hidden + 64, 256),
@@ -62,6 +62,12 @@ class FeatureFusionTransformer(nn.Module):
             nn.Dropout(0.30),
             nn.Linear(256, num_classes),
         )
+
+    def forward_stylometry(self, stylometry: torch.Tensor) -> torch.Tensor:
+        """Forward-pass through the ResNet stylometry branch."""
+        s1 = self.sty_dropout(self.sty_relu(self.sty_norm1(self.sty_fc1(stylometry))))
+        s2 = self.sty_dropout(self.sty_relu(self.sty_norm2(self.sty_fc2(s1))))
+        return s1 + s2
 
     def forward(
         self,
@@ -81,7 +87,7 @@ class FeatureFusionTransformer(nn.Module):
         last_hidden = outputs.last_hidden_state
 
         cls_vec = last_hidden[:, 0, :]
-        sty_vec = self.sty_branch(stylometry)
+        sty_vec = self.forward_stylometry(stylometry)
 
         fused = torch.cat([cls_vec, sty_vec], dim=1)
         logits = self.classifier(fused)

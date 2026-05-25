@@ -18,6 +18,7 @@ from __future__ import annotations
 
 import json
 import logging
+from collections import defaultdict
 from pathlib import Path
 
 import joblib
@@ -171,7 +172,7 @@ class ModelManager:
             attentions = outputs.attentions
 
         # 2. Run fusion dense branches WITH gradient tracking to compute feature importances
-        sty_vec = self.model.sty_branch(sty_tensor)
+        sty_vec = self.model.forward_stylometry(sty_tensor)
         fused = torch.cat([cls_vec, sty_vec], dim=1)
         logits = self.model.classifier(fused)
         
@@ -216,15 +217,18 @@ class ModelManager:
         
         tokens = self.tokenizer.convert_ids_to_tokens(input_ids[0])
         
-        token_att_pairs = [
-            (tok, float(att)) 
-            for tok, att in zip(tokens, cls_attention) 
-            if tok not in ["[CLS]", "[SEP]", "[PAD]"]
-        ]
+        token_att_dict = defaultdict(float)
+        for tok, att in zip(tokens, cls_attention):
+            if tok not in ["[CLS]", "[SEP]", "[PAD]", "<s>", "</s>", "<pad>"]:
+                clean_tok = tok.replace("##", "").replace(" ", "").strip()
+                if clean_tok:  # Skip empty strings
+                    token_att_dict[clean_tok] += float(att)
+                    
+        token_att_pairs = list(token_att_dict.items())
         # Sort descending by attention weight
         token_att_pairs.sort(key=lambda x: x[1], reverse=True)
         
-        # Keep top 10
+        # Keep top 10 unique tokens
         xai_tokens = [
             {"token": tok, "attention": round(att, 4)}
             for tok, att in token_att_pairs[:10]

@@ -59,6 +59,22 @@ def predict_authorship(claimed_author: str, text: str) -> dict:
     # ── Business-logic label mapping ─────────────────────────────────────
     claimed_lower = claimed_author.strip().lower()
 
+    if confidence < 0.5:
+        return {
+            "label": "authentic",
+            "confidence": round(confidence, 4),
+            "author_similarity": round(prob_map.get(claimed_author, _fuzzy_lookup(prob_map, claimed_lower)), 4),
+            "ai_likelihood": round(ai_probability, 4),
+            "stylometry": stylometry_dict,
+            "class_probabilities": prob_map,
+            "xai_tokens": xai_tokens,
+            "xai_stylometry": xai_stylometry,
+            "explanation": (
+                "The model's prediction is inconclusive (confidence below 50%), "
+                "so no imposter or AI signal is flagged."
+            ),
+        }
+
     if predicted_label == LABEL_AI:
         return {
             "label": "ai_generated",
