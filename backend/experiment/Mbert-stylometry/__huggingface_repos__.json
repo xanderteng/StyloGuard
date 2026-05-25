@@ -1,0 +1,1 @@
+{"repos": [{"repoId": "bert-base-multilingual-cased", "repoType": "model", "commitHash": "3f076fdb1ab68d5b2880cb87a0886f315b8146f8", "filePaths": ["tokenizer_config.json", "model.safetensors", "tokenizer.json", "vocab.txt", "config.json"]}]}

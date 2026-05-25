@@ -8,3 +8,6 @@ __pycache__/
 .gitignore
 *.db
 styloguard.db
+# Experiments and model artifacts in experiment/
+experiment/
+experiment/**/model_artifacts/

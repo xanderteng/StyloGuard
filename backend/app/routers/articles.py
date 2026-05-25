@@ -34,6 +34,14 @@ def list_authors(db: Session = Depends(get_db), min_articles: int = Query(1, ge=
     return [{"author": author, "article_count": count} for author, count in rows]
 
 
+@router.get("/count")
+def count_articles(db: Session = Depends(get_db), author: str | None = None) -> dict:
+    query = db.query(Article)
+    if author:
+        query = query.filter(Article.author.ilike(author.strip()))
+    return {"count": query.count()}
+
+
 @router.get("/{article_id}", response_model=ArticleSchema)
 def get_article(article_id: int, db: Session = Depends(get_db)) -> Article:
     article = db.query(Article).filter(Article.id == article_id).first()
