@@ -40,9 +40,20 @@ function App() {
   const [articles, setArticles] = useState<Article[]>([]);
   const [articlesLoading, setArticlesLoading] = useState(true);
   const [articlesError, setArticlesError] = useState('');
+  const [page, setPage] = useState(1);
+  const [limit, setLimit] = useState(10);
+  const [totalCount, setTotalCount] = useState(1021);
 
   useEffect(() => {
-    fetch(`${API_BASE_URL}/articles?limit=10`)
+    fetch(`${API_BASE_URL}/articles/count`)
+      .then((response) => response.ok ? response.json() : Promise.reject(new Error('Count unavailable')))
+      .then((data) => setTotalCount(data.count))
+      .catch(() => setTotalCount(1021));
+  }, []);
+
+  useEffect(() => {
+    setArticlesLoading(true);
+    fetch(`${API_BASE_URL}/articles?limit=${limit}&offset=${(page - 1) * limit}`)
       .then((response) => response.ok ? response.json() : Promise.reject(new Error('Dataset unavailable')))
       .then(setArticles)
       .catch((err) => {
@@ -50,16 +61,38 @@ function App() {
         setArticlesError(err instanceof Error ? err.message : 'Dataset unavailable');
       })
       .finally(() => setArticlesLoading(false));
-  }, []);
+  }, [page, limit]);
+
+  const handleLimitChange = (newLimit: number) => {
+    setLimit(newLimit);
+    setPage(1);
+  };
+
+  const getPageNumbers = () => {
+    const totalPages = Math.ceil(totalCount / limit);
+    if (totalPages <= 7) {
+      return Array.from({ length: totalPages }, (_, i) => i + 1);
+    }
+    
+    const pages: (number | string)[] = [];
+    if (page <= 4) {
+      pages.push(1, 2, 3, 4, 5, '...', totalPages);
+    } else if (page >= totalPages - 3) {
+      pages.push(1, '...', totalPages - 4, totalPages - 3, totalPages - 2, totalPages - 1, totalPages);
+    } else {
+      pages.push(1, '...', page - 1, page, page + 1, '...', totalPages);
+    }
+    return pages;
+  };
 
   const handleAnalyze = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!textInput || !authorInput) return;
-    
+
     setIsAnalyzing(true);
     setResult(null);
     setError('');
-    
+
     try {
       const response = await fetch(`${API_BASE_URL}/predict`, {
         method: 'POST',
@@ -88,8 +121,8 @@ function App() {
   // Get top 3 class probabilities for the detail view
   const topClasses = result?.class_probabilities
     ? Object.entries(result.class_probabilities)
-        .sort(([, a], [, b]) => b - a)
-        .slice(0, 4)
+      .sort(([, a], [, b]) => b - a)
+      .slice(0, 4)
     : [];
 
   const renderHighlightedText = () => {
@@ -151,13 +184,13 @@ function App() {
           <h1>StyloGuard</h1>
         </div>
         <div className="nav-links">
-          <button 
+          <button
             className={`nav-btn ${activeTab === 'analyze' ? 'active' : ''}`}
             onClick={() => setActiveTab('analyze')}
           >
             Analyzer
           </button>
-          <button 
+          <button
             className={`nav-btn ${activeTab === 'dataset' ? 'active' : ''}`}
             onClick={() => setActiveTab('dataset')}
           >
@@ -179,10 +212,10 @@ function App() {
                 <form onSubmit={handleAnalyze}>
                   <div className="input-group">
                     <label htmlFor="author">Claimed Author</label>
-                    <input 
+                    <input
                       id="author"
-                      type="text" 
-                      placeholder="e.g., Habib Allbi Ferdian, Ahmad Zaki, etc." 
+                      type="text"
+                      placeholder="e.g., Habib Allbi Ferdian, Ahmad Zaki, etc."
                       value={authorInput}
                       onChange={(e) => setAuthorInput(e.target.value)}
                       required
@@ -190,16 +223,16 @@ function App() {
                   </div>
                   <div className="input-group">
                     <label htmlFor="article">Article Content</label>
-                    <textarea 
+                    <textarea
                       id="article"
-                      placeholder="Paste the article text here for stylometric analysis..." 
+                      placeholder="Paste the article text here for stylometric analysis..."
                       value={textInput}
                       onChange={(e) => setTextInput(e.target.value)}
                       required
                     />
                   </div>
-                  <button 
-                    type="submit" 
+                  <button
+                    type="submit"
                     className={`analyze-btn ${isAnalyzing ? 'analyzing' : ''}`}
                     disabled={isAnalyzing || !textInput || !authorInput}
                   >
@@ -222,7 +255,7 @@ function App() {
                 ) : result ? (
                   <div className="result-display animate-fade-in">
                     <h3>Analysis Complete</h3>
-                    
+
                     <div className={`status-card ${statusClass}`}>
                       <div className="status-icon">
                         {result.label === 'authentic' && '✅'}
@@ -245,19 +278,19 @@ function App() {
                       <div className="metric-box">
                         <span className="metric-label">Model Confidence</span>
                         <span className="metric-value">{confidencePercent}</span>
-                        <div className="progress-bar"><div className="fill" style={{width: confidencePercent}}></div></div>
+                        <div className="progress-bar"><div className="fill" style={{ width: confidencePercent }}></div></div>
                       </div>
                       <div className="metric-box">
                         <span className="metric-label">Author Similarity</span>
                         <span className="metric-value">{similarityPercent}</span>
                         <div className="progress-bar">
-                          <div className={`fill ${result.author_similarity < 0.5 ? 'warning' : ''}`} style={{width: similarityPercent}}></div>
+                          <div className={`fill ${result.author_similarity < 0.5 ? 'warning' : ''}`} style={{ width: similarityPercent }}></div>
                         </div>
                       </div>
                       <div className="metric-box">
                         <span className="metric-label">AI-Like Signal</span>
                         <span className="metric-value">{aiPercent}</span>
-                        <div className="progress-bar"><div className="fill warning" style={{width: aiPercent}}></div></div>
+                        <div className="progress-bar"><div className="fill warning" style={{ width: aiPercent }}></div></div>
                       </div>
                     </div>
 
@@ -282,10 +315,10 @@ function App() {
                     {result.xai_tokens && result.xai_tokens.length > 0 && (
                       <div className="xai-breakdown">
                         <h4 className="breakdown-title">Explainable AI (xAI) Insights</h4>
-                        
+
                         <p className="xai-subtitle">Semantic Heatmap (Attention-driven context highlighting):</p>
                         {renderHighlightedText()}
-                        
+
                         <p className="xai-subtitle">Top contextual words driving the decision:</p>
                         <div className="xai-tokens-container">
                           {result.xai_tokens.map((xt, idx) => (
@@ -308,17 +341,17 @@ function App() {
                             const absVal = Math.abs(item.importance);
                             const maxVal = Math.max(...(result.xai_stylometry?.map(x => Math.abs(x.importance)) || [0.0001]));
                             const percent = Math.min(100, (absVal / maxVal) * 100);
-                            
+
                             const displayName = item.feature
                               .replace('fw_', 'Word: ')
                               .replace(/_/g, ' ')
                               .replace(/\b\w/g, c => c.toUpperCase());
-                              
+
                             return (
                               <div key={item.feature} className="stylo-bar-row">
                                 <span className="stylo-bar-label" title={item.feature}>{displayName}</span>
                                 <div className="stylo-bar-track">
-                                  <div 
+                                  <div
                                     className={`stylo-bar-fill ${isPositive ? 'positive' : 'negative'}`}
                                     style={{ width: `${percent}%` }}
                                   ></div>
@@ -349,7 +382,7 @@ function App() {
               <h2>Dataset Explorer</h2>
               <p>Sample training data used for the Feature-Fusion Transformer.</p>
             </header>
-            
+
             <div className="table-responsive">
               <table className="data-table">
                 <thead>
@@ -361,30 +394,83 @@ function App() {
                     <th>Status</th>
                   </tr>
                 </thead>
-                  <tbody>
-                    {articlesLoading ? (
-                      <tr>
-                        <td colSpan={5}>Loading articles...</td>
-                      </tr>
-                    ) : articlesError ? (
-                      <tr>
-                        <td colSpan={5}>Error: {articlesError}</td>
-                      </tr>
-                    ) : articles.length ? articles.map((article) => (
-                      <tr key={article.id}>
-                        <td>{article.author}</td>
-                        <td><span className="badge">{article.category}</span></td>
-                        <td className="truncate">{article.title}</td>
-                        <td>{article.date}</td>
-                        <td><span className="badge success">Indexed</span></td>
-                      </tr>
-                    )) : (
-                      <tr>
-                        <td colSpan={5}>No backend data loaded yet. Run the backend seed script to populate articles.</td>
-                      </tr>
-                    )}
-                  </tbody>
+                <tbody>
+                  {articlesLoading ? (
+                    <tr>
+                      <td colSpan={5}>Loading articles...</td>
+                    </tr>
+                  ) : articlesError ? (
+                    <tr>
+                      <td colSpan={5}>Error: {articlesError}</td>
+                    </tr>
+                  ) : articles.length ? articles.map((article) => (
+                    <tr key={article.id}>
+                      <td>{article.author}</td>
+                      <td><span className="badge">{article.category}</span></td>
+                      <td className="truncate">{article.title}</td>
+                      <td>{article.date}</td>
+                      <td><span className="badge success">Indexed</span></td>
+                    </tr>
+                  )) : (
+                    <tr>
+                      <td colSpan={5}>No backend data loaded yet. Run the backend seed script to populate articles.</td>
+                    </tr>
+                  )}
+                </tbody>
               </table>
+            </div>
+
+            <div className="dataset-controls">
+              <div className="page-size-selector">
+                <span>Show:</span>
+                {[5, 10, 20, 100].map((size) => (
+                  <button
+                    key={size}
+                    className={`size-btn ${limit === size ? 'active' : ''}`}
+                    onClick={() => handleLimitChange(size)}
+                  >
+                    {size}
+                  </button>
+                ))}
+              </div>
+
+              <div className="pagination-bar">
+                <button
+                  className="page-nav-btn"
+                  onClick={() => setPage((p) => Math.max(1, p - 1))}
+                  disabled={page === 1 || articlesLoading}
+                >
+                  &larr;
+                </button>
+
+                {getPageNumbers().map((p, idx) => {
+                  if (p === '...') {
+                    return (
+                      <span key={`ellipsis-${idx}`} className="page-ellipsis">
+                        ...
+                      </span>
+                    );
+                  }
+                  return (
+                    <button
+                      key={`page-${p}`}
+                      className={`page-num-btn ${page === p ? 'active' : ''}`}
+                      onClick={() => setPage(Number(p))}
+                      disabled={articlesLoading}
+                    >
+                      {p}
+                    </button>
+                  );
+                })}
+
+                <button
+                  className="page-nav-btn"
+                  onClick={() => setPage((p) => Math.min(Math.ceil(totalCount / limit), p + 1))}
+                  disabled={page === Math.ceil(totalCount / limit) || articlesLoading}
+                >
+                  &rarr;
+                </button>
+              </div>
             </div>
           </div>
         )}

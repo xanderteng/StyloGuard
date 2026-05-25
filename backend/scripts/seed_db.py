@@ -50,12 +50,19 @@ def seed_database() -> int:
     pending_urls: set[str] = set()
 
     try:
+        # Auto-cleanup: If there are any "Unknown" authors in the DB, clear the table to force a clean re-seed
+        unknown_count = db.query(Article).filter(Article.author == "Unknown").count()
+        if unknown_count > 0:
+            logger.info("Found %s articles with 'Unknown' author. Clearing table for a clean re-seed.", unknown_count)
+            db.query(Article).delete()
+            db.commit()
+
         existing_urls = {url for (url,) in db.query(Article.url).all()}
         target_csv_path = PROCESSED_DATA_DIR / "filtered_top10.csv"
         csv_paths = [target_csv_path] if target_csv_path.exists() else sorted(PROCESSED_DATA_DIR.glob("*.csv"))
         
         for csv_path in csv_paths:
-            with csv_path.open(newline="", encoding="utf-8") as handle:
+            with csv_path.open(newline="", encoding="utf-8-sig") as handle:
                 reader = csv.DictReader(handle)
                 for row in reader:
                     url = (row.get("url") or "").strip()

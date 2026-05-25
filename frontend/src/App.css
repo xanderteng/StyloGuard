@@ -102,7 +102,8 @@
   }
 }
 
-.input-section, .results-section {
+.input-section,
+.results-section {
   padding: 2rem;
 }
 
@@ -120,7 +121,8 @@
   font-size: 0.95rem;
 }
 
-input, textarea {
+input,
+textarea {
   width: 100%;
   background: rgba(0, 0, 0, 0.2);
   border: 1px solid var(--border);
@@ -137,7 +139,8 @@ textarea {
   resize: vertical;
 }
 
-input:focus, textarea:focus {
+input:focus,
+textarea:focus {
   outline: none;
   border-color: var(--accent-primary);
   box-shadow: 0 0 0 3px rgba(56, 189, 248, 0.2);
@@ -181,14 +184,16 @@ input:focus, textarea:focus {
 .spinner {
   width: 20px;
   height: 20px;
-  border: 3px solid rgba(255,255,255,0.3);
+  border: 3px solid rgba(255, 255, 255, 0.3);
   border-radius: 50%;
   border-top-color: white;
   animation: spin 1s ease-in-out infinite;
 }
 
 @keyframes spin {
-  to { transform: rotate(360deg); }
+  to {
+    transform: rotate(360deg);
+  }
 }
 
 /* Results Section */
@@ -233,7 +238,8 @@ input:focus, textarea:focus {
   border: 1px solid rgba(251, 191, 36, 0.3);
 }
 
-.status-card.uncertain, .status-card.unknown {
+.status-card.uncertain,
+.status-card.unknown {
   background: rgba(129, 140, 248, 0.1);
   border: 1px solid rgba(129, 140, 248, 0.3);
 }
@@ -247,10 +253,22 @@ input:focus, textarea:focus {
   margin-bottom: 0.5rem;
 }
 
-.status-card.authentic h4 { color: var(--success); }
-.status-card.imposter h4 { color: var(--danger); }
-.status-card.ai h4 { color: var(--warning); }
-.status-card.uncertain h4, .status-card.unknown h4 { color: var(--accent-secondary); }
+.status-card.authentic h4 {
+  color: var(--success);
+}
+
+.status-card.imposter h4 {
+  color: var(--danger);
+}
+
+.status-card.ai h4 {
+  color: var(--warning);
+}
+
+.status-card.uncertain h4,
+.status-card.unknown h4 {
+  color: var(--accent-secondary);
+}
 
 .status-text p {
   color: var(--text-muted);
@@ -294,7 +312,7 @@ input:focus, textarea:focus {
 
 .progress-bar {
   height: 6px;
-  background: rgba(255,255,255,0.1);
+  background: rgba(255, 255, 255, 0.1);
   border-radius: 3px;
   overflow: hidden;
 }
@@ -337,11 +355,11 @@ input:focus, textarea:focus {
 
 .data-table td {
   padding: 1rem;
-  border-bottom: 1px solid rgba(255,255,255,0.05);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
 }
 
 .data-table tr:hover td {
-  background: rgba(255,255,255,0.02);
+  background: rgba(255, 255, 255, 0.02);
 }
 
 .truncate {
@@ -356,7 +374,7 @@ input:focus, textarea:focus {
   border-radius: 999px;
   font-size: 0.75rem;
   font-weight: 600;
-  background: rgba(255,255,255,0.1);
+  background: rgba(255, 255, 255, 0.1);
   color: var(--text-main);
 }
 
@@ -587,4 +605,93 @@ input:focus, textarea:focus {
 
 .negative-text {
   color: var(--danger);
+}
+
+/* Dataset Controls & Pagination (Glassmorphism-compatible style) */
+.dataset-controls {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: 1.5rem;
+  padding-top: 1.5rem;
+  border-top: 1px solid var(--border);
+  flex-wrap: wrap;
+  gap: 1rem;
+}
+
+.page-size-selector {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  color: var(--text-muted);
+  font-size: 0.9rem;
+}
+
+.size-btn {
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid var(--border);
+  color: var(--text-muted);
+  padding: 0.35rem 0.75rem;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 0.85rem;
+  transition: all 0.2s ease;
+}
+
+.size-btn:hover {
+  background: rgba(255, 255, 255, 0.1);
+  color: var(--text-main);
+}
+
+.size-btn.active {
+  background: var(--accent-primary);
+  border-color: var(--accent-primary);
+  color: #000;
+  font-weight: 600;
+}
+
+.pagination-bar {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.page-nav-btn, .page-num-btn {
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid var(--border);
+  color: var(--text-muted);
+  min-width: 2.25rem;
+  height: 2.25rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 0.9rem;
+  font-weight: 500;
+  transition: all 0.2s ease;
+  padding: 0 0.5rem;
+}
+
+.page-nav-btn:hover:not(:disabled), .page-num-btn:hover:not(.active) {
+  background: rgba(255, 255, 255, 0.1);
+  color: var(--text-main);
+  border-color: var(--text-main);
+}
+
+.page-nav-btn:disabled {
+  opacity: 0.3;
+  cursor: not-allowed;
+}
+
+.page-num-btn.active {
+  background: var(--accent-primary);
+  border-color: var(--accent-primary);
+  color: #000;
+  font-weight: 700;
+}
+
+.page-ellipsis {
+  color: var(--text-muted);
+  padding: 0 0.25rem;
 }

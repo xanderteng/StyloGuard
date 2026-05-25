@@ -70,7 +70,7 @@ def predict_authorship(claimed_author: str, text: str) -> dict:
             "xai_tokens": xai_tokens,
             "xai_stylometry": xai_stylometry,
             "explanation": (
-                "The model's prediction is inconclusive (confidence below 50%), "
+                "The model's prediction is inconclusive as the confidence is below 70%, "
                 "so no imposter or AI signal is flagged."
             ),
         }
