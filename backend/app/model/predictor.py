@@ -59,7 +59,7 @@ def predict_authorship(claimed_author: str, text: str) -> dict:
     # ── Business-logic label mapping ─────────────────────────────────────
     claimed_lower = claimed_author.strip().lower()
 
-    if confidence < 0.5:
+    if confidence < 0.7:
         return {
             "label": "authentic",
             "confidence": round(confidence, 4),
