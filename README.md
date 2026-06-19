@@ -1,6 +1,10 @@
 # 🛡️ StyloGuard: Advanced Indonesian Stylometry & Ghostwriter Detection
 
+[![Live Demo](https://img.shields.io/badge/Live%20Demo-Vercel-brightgreen)](https://styloguard-frontend.vercel.app/)
+
 StyloGuard is a state-of-the-art system designed to detect human imposters and automated ghostwriters in Indonesian digital media. By leveraging a **Feature-Fusion Transformer** architecture, it combines the semantic power of pre-trained language models with the invariant nature of topic-blind stylometric features.
+
+⚡ **Try the live app here**: [https://styloguard-frontend.vercel.app/](https://styloguard-frontend.vercel.app/)
 
 ## 🚀 Overview & Key Features
 
