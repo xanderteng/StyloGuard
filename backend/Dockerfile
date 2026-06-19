@@ -16,7 +16,13 @@ RUN uv pip install --system --no-cache -r pyproject.toml --extra-index-url https
 COPY app ./app
 COPY scripts ./scripts
 COPY data ./data
-COPY model_artifacts ./model_artifacts
+RUN uv pip install --system --no-cache gdown && \
+    mkdir -p model_artifacts/tokenizer && \
+    gdown 1ojrNng6Nqam7KmS5L-1VXJ3jocohZZJH -O model_artifacts/feature_fusion_transformer.pt && \
+    gdown 16HxrdZnQTmPgH_6I0JT_NH8JRt1TRCiA -O model_artifacts/label_map.json && \
+    gdown 133vTULQJeb2dvMTl4nJh5jEySnI-n0rf -O model_artifacts/standard_scaler.joblib && \
+    gdown 1SP05x_WvokWirJcImJf5P3rz6W9KDvZB -O model_artifacts/tokenizer/tokenizer.json && \
+    gdown 1S5GC3xSdtZJuxiGAyrUPX5Hh-mwL1ki- -O model_artifacts/tokenizer/tokenizer_config.json
 
 EXPOSE 8000
 
