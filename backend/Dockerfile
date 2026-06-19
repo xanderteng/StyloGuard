@@ -24,6 +24,6 @@ RUN uv pip install --system --no-cache gdown && \
     gdown 1SP05x_WvokWirJcImJf5P3rz6W9KDvZB -O model_artifacts/tokenizer/tokenizer.json && \
     gdown 1S5GC3xSdtZJuxiGAyrUPX5Hh-mwL1ki- -O model_artifacts/tokenizer/tokenizer_config.json
 
-EXPOSE 8000
+EXPOSE 7860
 
-CMD ["sh", "-c", "python -m scripts.seed_db && uvicorn app.main:app --host 0.0.0.0 --port 8000"]
+CMD ["sh", "-c", "python -m scripts.seed_db && uvicorn app.main:app --host 0.0.0.0 --port 7860"]
