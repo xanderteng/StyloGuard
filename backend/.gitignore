@@ -4,3 +4,6 @@ __pycache__/
 *.py[cod]
 *.db
 model_artifacts/
+data/raw/
+data/processed/merged_dataset.csv
+experiment/
