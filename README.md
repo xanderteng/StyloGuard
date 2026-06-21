@@ -6,6 +6,8 @@ StyloGuard is a state-of-the-art system designed to detect human imposters and a
 
 ⚡ **Try the live app here**: [https://styloguard-frontend.vercel.app/](https://styloguard-frontend.vercel.app/)
 
+NOTES: Because the backend is deployed on huggingface space free tier, which sleeps after 48 hours of inactivity. Users will need to contact us to restart the backend space in order to try the live app. Otherwise, try running on local using docker with the model artifacts uploaded. 
+
 ## 🚀 Overview & Key Features
 
 StyloGuard addresses the growing challenge of digital authenticity. Traditional NLP models often struggle with "topic-leakage" where they identify the *subject* rather than the *author*. StyloGuard solves this by fusing semantic deep learning with topic-blind style fingerprints:
